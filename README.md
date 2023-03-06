@@ -1,6 +1,6 @@
 # lawn-rover-main-computer
 
-Part of the lawn rover project, this is the main controller to interface with the remote reciever, interpret the signals, and in turn drive the wheels.
+Part of the lawn rover project, this is the main controller to interface with the remote reciever, interpret the signals, and interface to the motor drivers to drive the wheels.
 
 An esp32 was used as I already had one readily available. The Arduino IDE was used for it's ease of use and effectiveness.
 
