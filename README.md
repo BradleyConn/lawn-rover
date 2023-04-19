@@ -1,4 +1,4 @@
-# lawn-rover-main-computer
+# lawn-rover-program
 
 Part of the lawn rover project, this is the main controller to interface with the remote reciever, interpret the signals, and interface to the motor drivers to drive the wheels.
 
