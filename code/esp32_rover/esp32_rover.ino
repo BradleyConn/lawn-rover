@@ -1,102 +1,53 @@
+/***  www.bradleyconn.space ***/
+
+/**
+ * This is the "production" code.
+ * It strips out the "leds as motors" testing.
+ * It leaves all the printing because it isn't that time sensitive with smoothing turned on.
+ * This file is way longer than it should be but it's kept that
+ * way to be really easy to import into the Arduino IDE and use.
+ * 
+ */
+
 #include <Arduino.h>
+// ESP32 needs a special analog write library
 #include <analogWrite.h>
 
 // pin definitions
-int pin_ch1 = 34;
-int pin_ch2 = 35;
-int pin_ch3 = 32;
-int pin_ch4 = 33;
-int pin_ch5 = 25;
-int pin_ch6 = 26;
-// array approach is probably better
-// pins for channels 1 to 6
-int pin_ch[6] = {
-  34, 35, 32, 33, 25, 26};
+const uint8_t pin_ch1 = 34;
+const uint8_t pin_ch2 = 35;
+const uint8_t pin_ch3 = 32;
+const uint8_t pin_ch4 = 33;
+const uint8_t pin_ch5 = 25;
+const uint8_t pin_ch6 = 26;
 
-int pin_reverse_left = 12; // not good as an input
-int pin_reverse_right = 14;
+const uint8_t pin_reverse_left = 12; // pin not good as an input
+const uint8_t pin_reverse_right = 14;
 
-int pin_left = 13;
-int pin_right = 27;
+const uint8_t pin_left = 13;
+const uint8_t pin_right = 27;
 
-int pin_led_up = 5;
-int pin_led_down = 17;
-int pin_led_left = 16;
-int pin_led_right = 4;
-
-
-// channel values
-int ch1;
-int ch2;
-int ch3;
-int ch4;
-int ch5;
-int ch6;
-// array approach is probably better
-int ch[6];
-
-// right stick x = ch1
-// right stick y  = ch2
-// left stick y = ch 3
-// left stick x = ch 4
-// top right switch = ch 5
-// top left wtich = ch 6
-
-
-
+/****************************************
+  This is how the controller mapping goes
+     right stick x    = ch1
+     right stick y    = ch2
+     left stick y     = ch3
+     left stick x     = ch4
+     top right switch = ch5
+     top left wtich   = ch6
+****************************************/
 
 // TODO: Make a calibration routine with a button
 // May only need to do it for one channel and apply to all
-int ch1_max = 2000;
-int ch1_min = 1000;
-int ch2_max = 1822;
-int ch2_min = 922;
+const int ch1_max = 2000;
+const int ch1_min = 1000;
+const int ch2_max = 1822;
+const int ch2_min = 922;
+const int ch3_max = 2000;
+const int ch3_min = 1000;
+const int ch4_max = 2000;
+const int ch4_min = 1000;
 
-void led_display_off() {
-  digitalWrite(pin_led_up, LOW);
-  digitalWrite(pin_led_down, LOW);
-  digitalWrite(pin_led_left, LOW);
-  digitalWrite(pin_led_right, LOW);
-}
-void led_display_on() {
-  digitalWrite(pin_led_up, HIGH);
-  digitalWrite(pin_led_down, HIGH);
-  digitalWrite(pin_led_left, HIGH);
-  digitalWrite(pin_led_right, HIGH);
-}
-void single_stick_led_display(int ch_x_mapped, int ch_y_mapped) {
-  led_display_off();
-  //left
-  if(ch_x_mapped < -100) {
-    digitalWrite(pin_led_left, HIGH);
-  }
-  //right
-  else if (ch_x_mapped > 100) {
-    digitalWrite(pin_led_right,HIGH);
-  }
-  //down
-  if(ch_y_mapped < -100) {
-    digitalWrite(pin_led_down,HIGH);
-  }
-  //up
-  else if (ch_y_mapped > 100) {
-    digitalWrite(pin_led_up, HIGH);
-  }
-}
-void dual_stick_led_display(int left, int right) {
-  led_display_off();
-  if(abs(left) > 150) {
-    digitalWrite(pin_led_left,HIGH);
-  }
-  if(abs(right) > 150) {
-    digitalWrite(pin_led_right,HIGH);
-  }
-}
-
-// Quick changes in the motors is violent on the vehicle and its electronics.
-// Try to reduce instantanious large changes.
-// Keep some historical data to make informed corrections.
-// Turn off moving average for now
 #if 0
 #define datapoints 5
 int left_history[datapoints];
@@ -136,11 +87,17 @@ void smooth_driving(int * left, int * right) {
 }
 #endif
 #if 1
+
+/**
+ * Some smoothing params for the function below!
+ * Globals are used for easy resetting
+ */
 // Step per second allowed.
 // As a guess, don't go more than 50% in half a second? that might be slow...
 // Range is from -500 to +500
 #define max_step  75
 #define step_time_ms  50
+// Variables to store the historical data
 int prev_left = 0;
 int prev_right = 0;
 // This needs to be updated on every call to smooth that updates AND every reset smooth
@@ -151,6 +108,18 @@ void reset_smoothing_function() {
   prev_right = 0;
   prev_time = millis();
 }
+
+/**
+ * This functions take a left wheel and right wheel signal and use historical data
+ * to smooth the control experiance. The parameters are inout params
+ * Motivation:
+ * Quick changes in the motors is violent on the vehicle and its electronics.
+ * Try to reduce instantanious large changes.
+ * Keep some historical data to make informed corrections.
+ * 
+ * @param *left - in out param for the drive signal the motor
+ * @param *right - in out param for the drive signal of the motor
+ */
 void smooth_driving(int * left, int * right) {
   Serial.print("Millis: ");
   Serial.println(millis());
@@ -217,19 +186,29 @@ void smooth_driving(int * left, int * right) {
   prev_time = millis();
 }
 #endif
+
+/**
+ * This is the function that takes the left and right drive strength and direction
+ * and sends it out to the motor.
+ * 
+ * Left and right are ints where negative indicates going in the reverse direction
+ * The values should be between -500 and 500
+ * The motor driver splits it into a direction signal (binary) and a strength signal (variable)
+ * 
+ * @param int left - left drive value between -500 and 500
+ * @param int right - right drive value between -500 and 500
+ */
 void drive(int left, int right) {
-
+  // The rover can have pretty harsh instantaneous behavior
+  // so apply and algorithm to smooth out the harshness
+  // These are inout params
   smooth_driving(&left, &right);
-  /*if(left <100 && left >-100) {
-    left = 0;
-  }
-  if(right <100 && right >-100) {
-    right = 0;
-  }*/
 
-Serial.println(left);
-Serial.println(right);
+  Serial.println(left);
+  Serial.println(right);
 
+  // Deduce the direction of each motor and send the signal
+  // Also ensure the speed is a positive number 
   if (left < 0) {
     // reverse on
     digitalWrite(pin_reverse_left, HIGH);
@@ -240,7 +219,6 @@ Serial.println(right);
     //reverse off
     digitalWrite(pin_reverse_left, LOW);
     Serial.println("left forward");
-
   }
 
   if (right < 0) {
@@ -255,14 +233,14 @@ Serial.println(right);
     Serial.println("right forward");
   }
 
-
- //clip the values over 500, and set anything over 400 to max
+ //clip the values over 500, and set anything over 450 to max
   if (left > 450) {
     left = 500; 
   }
   if (right > 450) {
     right = 500;
   }
+ //clip the values under 100 to keep sensitivity down
   if (left < 100) {
     left = 0; 
   }
@@ -282,11 +260,17 @@ Serial.println(right);
   Serial.println(map(left, 0, 500, 0, 255));
   Serial.print("right power ");
   Serial.println(map(right, 0, 500, 0, 255));
-
-
 }
 
+/**
+ * This function takes left-right, up-down controller axis, maps it to a left
+ * and right wheel. Then sends it to the motor for actuation.
+ * 
+ * @param ch_x_mapped - the left-right value. Left is negative.
+ * @param ch_y_mapped - the up-down value. Down is negative.
+ */
 void single_stick_drive(int ch_x_mapped, int ch_y_mapped) {
+  // Cool little "algorithm". Easy enough to think through.
   int left = ch_y_mapped + ch_x_mapped;
   int right = ch_y_mapped - ch_x_mapped;
 
@@ -310,12 +294,19 @@ void single_stick_drive(int ch_x_mapped, int ch_y_mapped) {
   drive(left, right);
 }
 
+
+/**
+ * This function takes left-right, up-down controller axis, maps it to a left
+ * and right wheel. Then sends it to the motor for actuation.
+ * 
+ * @param left - the left stick value. Down is negative.
+ * @param right - the Right stick value. Down is negative.
+ */
 void dual_stick_drive(int left, int right) {
   drive(left, right);
 }
 
 void setup() {
-
   // initialize digital pin LED_BUILTIN as an output.
   pinMode(LED_BUILTIN, OUTPUT);
 
@@ -332,74 +323,30 @@ void setup() {
   pinMode(pin_left, OUTPUT);
   pinMode(pin_right, OUTPUT);
 
-  //leds
-  pinMode(pin_led_up, OUTPUT);
-  pinMode(pin_led_down, OUTPUT);
-  pinMode(pin_led_left, OUTPUT);
-  pinMode(pin_led_right, OUTPUT);
+  Serial.begin(115200);
 
-  Serial.begin(115200); // Pour a bowl of Serial
-
-  //disable everything on start up.
+  //disable all motor output on start up.
   digitalWrite(pin_right, LOW);
   digitalWrite(pin_left, LOW);
   digitalWrite(pin_reverse_right, LOW);
   digitalWrite(pin_reverse_left, LOW);
-
-
-
 }
 
-bool pulse = false;
 void loop() {
   // Read the pulse width of each channel
-  ch1 = pulseIn(pin_ch1, HIGH, 25000); // Read the pulse width of 
-  ch2 = pulseIn(pin_ch2, HIGH, 25000); // each channel
-  ch3 = pulseIn(pin_ch3, HIGH, 25000);
-  ch4 = pulseIn(pin_ch4, HIGH, 25000);
-  ch5 = pulseIn(pin_ch5, HIGH, 25000);
-  ch6 = pulseIn(pin_ch6, HIGH, 25000);
-
-
-  //Serial.print("Right Stick X:"); // Ch3 was x-axis 
-  //Serial.print(ch3); // center at 0
-  //Serial.print(" mapped: "); // center at 0
-  //Serial.println(map(ch3, 922,1822,-500,500)); // center at 0
-  //Serial.print("Right Stick Y:"); // Ch2 was y-axis
-  //Serial.println(map(ch2, 922,1822, -500,500)); // center at 0
-  //Serial.println(); //make some room
-
-  //int ch3_mapped = map(ch3, ch1_min,ch1_max,-500,500);
-  //int ch2_mapped = map(ch2, ch1_min,ch1_max,-500,500);
-  //use the old min and max
-  //Serial.println(ch1); // center at 0
+  int ch1 = pulseIn(pin_ch1, HIGH, 25000); // Read the pulse width of 
+  int ch2 = pulseIn(pin_ch2, HIGH, 25000); // each channel
+  int ch3 = pulseIn(pin_ch3, HIGH, 25000);
+  int ch4 = pulseIn(pin_ch4, HIGH, 25000);
+  int ch5 = pulseIn(pin_ch5, HIGH, 25000);
+  int ch6 = pulseIn(pin_ch6, HIGH, 25000);
 
   int ch1_mapped = map(ch1, ch1_min,ch1_max,-500,500);
-  /*Serial.print("ch1 raw: "); // center at 0
-  Serial.print(ch1); // center at 0
-  Serial.print("    ch1 mapped: "); // center at 0
-  Serial.println(ch1_mapped); // center at 0
-  */
   int ch2_mapped = map(ch2, ch1_min,ch1_max,-500,500);
-  /*Serial.print("ch2 raw: "); // center at 0
-  Serial.print(ch2); // center at 0
-  Serial.print("    ch2 mapped: "); // center at 0
-  Serial.println(ch2_mapped); // center at 0
-  */
   int ch3_mapped = map(ch3, ch1_min,ch1_max,-500,500);
-  //Serial.print("ch3 mapped: "); // center at 0
-  //Serial.println(ch3_mapped); // center at 0
   int ch4_mapped = map(ch4, ch1_min,ch1_max,-500,500);
-  //Serial.print("ch4 mapped: "); // center at 0
-  //Serial.println(ch4_mapped); // center at 0
   int ch5_mapped = map(ch5, ch1_min,ch1_max,-500,500);
-  //Serial.print("ch5 mapped: "); // center at 0
-  //Serial.println(ch5_mapped); // center at 0
   int ch6_mapped = map(ch6, ch1_min,ch1_max,-500,500);
-  //Serial.print("ch6 mapped: "); // center at 0
-  //Serial.println(ch6_mapped); // center at 0
-  //Serial.println(); // center at 0
-  
 
   int right_stick_up_down = ch2_mapped;
   int right_stick_left_right = ch1_mapped;
@@ -409,19 +356,14 @@ void loop() {
   int right_toggle = ch5_mapped;
 
   Serial.print("Right stick updown: "); // center at 0
-  Serial.println(right_stick_up_down); // center at 0
-    Serial.print("Right stick leftright: "); // center at 0
-  Serial.println(right_stick_left_right); // center at 0
-    Serial.print("Left stick updown: "); // center at 0
-  Serial.println(left_stick_up_down); // center at 0
-    Serial.print("Left stick leftright: "); // center at 0
-  Serial.println(left_stick_left_right); // center at 0
-
+  Serial.println(right_stick_up_down);
+  Serial.print("Right stick leftright: ");
+  Serial.println(right_stick_left_right);
+  Serial.print("Left stick updown: ");
+  Serial.println(left_stick_up_down);
+  Serial.print("Left stick leftright: ");
+  Serial.println(left_stick_left_right);
   Serial.println("");
-
-  for (int p=0;p<0;p++){
-    Serial.println(); // center at 0
-  }
 
   bool single_stick = false;
   bool dual_stick = false;
@@ -456,9 +398,8 @@ void loop() {
   // If the controller isn't connected
   if(  ch1 < (ch1_min - buff) || ch1 > (ch1_max + buff)
     || ch2 < (ch2_min - buff) || ch2 > (ch2_max + buff)
-    || ch3 < (ch1_min - buff) || ch3 > (ch1_max + buff)
-    || ch4 < (ch1_min - buff) || ch4 > (ch1_max + buff)) {
-    led_display_off();
+    || ch3 < (ch3_min - buff) || ch3 > (ch3_max + buff)
+    || ch4 < (ch4_min - buff) || ch4 > (ch4_max + buff)) {
     digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
 
     //disable everything
@@ -467,15 +408,15 @@ void loop() {
     digitalWrite(pin_reverse_right, LOW);
     digitalWrite(pin_reverse_left, LOW);
 
-    // Controller isn't connected so reset the drive statefor when it comes back online.
+    // Controller isn't connected so reset the drive state for when it comes back online.
     reset_smoothing_function();
   }
+  // Controller is connected let's do this!
   else {
     //enable on
     digitalWrite(LED_BUILTIN, LOW);  
     if (single_stick) {
       if(!controls_backwards) {
-        //single_stick_led_display(right_stick_left_right, right_stick_up_down);
         single_stick_drive(right_stick_left_right, right_stick_up_down);
       }
       else {
@@ -483,12 +424,10 @@ void loop() {
         right_stick_left_right = -right_stick_left_right;
         right_stick_up_down = -right_stick_up_down;
         single_stick_drive(right_stick_left_right, right_stick_up_down);
-
       }
     }
     else if (dual_stick) {
       if(!controls_backwards) {
-        //dual_stick_led_display(left_stick_up_down, right_stick_up_down);
         dual_stick_drive(left_stick_up_down, right_stick_up_down);
       }
       else {
@@ -499,20 +438,4 @@ void loop() {
       }
     }
   }
-
-
-  //delay(1000);// I put this here just to make the terminal 
-  // window happier
-  pulse = !pulse;
-  if (pulse) {
-  //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-  }
-  else{
-  //delay(2000);                       // wait for a second
-  //digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
-  //delay(1000);                       // wait for a second
-  }
-  //analogWrite(pin_left, 150);//map(left, 100, 500, 0, 255));
-  //analogWrite(pin_right, 150);//map(right, 100, 500, 0, 255));
-
 }
