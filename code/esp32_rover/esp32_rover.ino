@@ -48,46 +48,6 @@ const int ch3_min = 1000;
 const int ch4_max = 2000;
 const int ch4_min = 1000;
 
-#if 0
-#define datapoints 5
-int left_history[datapoints];
-int right_history[datapoints];
-// A function that can be used to reset the arrays
-void reset_smoothing_function() {
-  for (int i=0; i<datapoints; i++) {
-    left_history[i] = 0;
-    right_history[i] = 0;
-  }
-}
-void smooth_driving(int * left, int * right) {
-  // Shift the data
-  // This is super inefficient but there's tons of performance overhead so going for the simple route
-  for (int i=datapoints-1; i>0; i--) {
-    left_history[i] = left_history[i-1];
-    right_history[i] = right_history[i-1];
-  }
-  //Enter the newest data
-  left_history[0] = *left;
-  right_history[0] = *right;
-
-  // Do the smoothing
-  // For now try a simple moving average
-  // XXX: In the future might need to care about maxing out the int
-  int left_accum = 0;
-  int right_accum = 0;
-  for (int i=datapoints-1; i>0; i--) {
-    left_accum = left_history[i];
-    right_accum = right_history[i];
-  }
-  int left_smoothed = left_accum / datapoints;
-  int right_smoothed = right_accum/datapoints;
-
-  *left = left_smoothed;
-  *right = right_smoothed;
-}
-#endif
-#if 1
-
 /**
  * Some smoothing params for the function below!
  * Globals are used for easy resetting
@@ -185,7 +145,6 @@ void smooth_driving(int * left, int * right) {
   prev_right = *right;
   prev_time = millis();
 }
-#endif
 
 /**
  * This is the function that takes the left and right drive strength and direction
